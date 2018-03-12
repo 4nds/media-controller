@@ -1,17 +1,24 @@
 (function (window, document, undefined) {
 	
 	'use strict';
+	var id;
 	
-	// A function to process messages received by the window.
+	//window.parent.postMessage();
+	//({'id': id, 'task': task}, iframe.src)
+	console.log(window.parent);
+	
 	function receiveMessage(messageEle, e) {
-		// Check to make sure that this message came from the correct domain.
-		//if (e.origin !== "http://s.codepen.io")
-		//	return;
-		console.log(e);
-		console.log(e.origin);
-
-		// Update the div element to display the message.
-		messageEle.innerHTML = "Message Received: " + e.data;
+		let message = e.data;
+		if (message["task"] == 'setup_id') {
+			id = message["id"];
+		} else if (id == message["id"]) {
+			switch (message["task"]) {
+				case 'find_videos':
+					day = "Monday";
+					break;
+			}
+		}
+				
 	}
 	
 
