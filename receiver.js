@@ -7,6 +7,7 @@
 		// Check to make sure that this message came from the correct domain.
 		//if (e.origin !== "http://s.codepen.io")
 		//	return;
+		console.log(e);
 		console.log(e.origin);
 
 		// Update the div element to display the message.
