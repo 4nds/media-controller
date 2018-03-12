@@ -17,7 +17,7 @@
 	function main() {
 		// Get a reference to the <div> on the page that will display the message text.
 		var messageEle = document.getElementById('message');
-	
+		console.log('Working script.')
 		// Setup an event listener that calls receiveMessage() when the window receives a new MessageEvent.
 		window.addEventListener('message', receiveMessage.bind(null, messageEle));
 		
