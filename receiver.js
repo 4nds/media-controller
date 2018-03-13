@@ -118,6 +118,7 @@
 		receiveMessage(e) {
 			let message = e.data;
 			console.log('receiveMessageFromParent1:', this.receiveMessageFromParent);
+			this.receiveMessageFromParent(message);
 			switch (message["sender"]) {
 				case 'parent':
 					console.log('receiveMessageFromParent2:', this.receiveMessageFromParent);
