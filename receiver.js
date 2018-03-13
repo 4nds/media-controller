@@ -1,9 +1,23 @@
 (function (window, document, undefined) {
 	
 	'use strict';
-	var id, parent_url;
+	
+	class ArrayDict extends Array {
+		
+		update(key, value) {
+			if (key in this) {
+				this[key].push(value);
+			} else {
+				this[key] = [value];
+			}
+		}
+		
+	}
+	
 	
 	class Communicator {
+		
+		
 		
 		constructor(type) {
 			//type can be: 'parent', 'iframe' or 'both'
@@ -14,46 +28,42 @@
 			}
 			this.is_child = this.type == 'child' || this.type == 'both';
 			this.is_parent = this.type == 'parent' || this.type == 'both';
-			//this.id = '';
-			//this.parent_url = '';
-			//this.iframe_elements;
 			this.iframes = [];
 			this.response = [];
 			this.response_types = []; 
 			this.functions = [];
 			this.function_tasks = [];
 			this.tasks = [];
+			this.callbacks = new ArrayDict();
 		}
 		
-		sendMessageToIframe_internal(id, task, data) {
-			if (data === undefined) { data = [] };
+		sendMessageToIframe_internal(id, task, data = []) {
 			this.iframes[id].contentWindow.postMessage({'sender': 'parent', 'reciever_id': id,
 				'task': task, 'data': data}, this.iframes[id].src);
 		}
 		
 		sendMessageToIframe(id, task, data) {
 			if (this.is_parent) {
-				this.response.push({key: task, value: []});
-				this.response_types.push({key: task, value: 'single'})
-				this.tasks.push({key: task, value: []});
+				this.response[task] = [];
+				this.response_types[task] = 'single';
+				this.tasks[task] = [];
 				this.sendMessageToIframe_internal(id, task, data);
 			}
 		}
 		
 		sendMessageToAllIframes(task, data) {
 			if (this.is_parent) {
-				this.response.push({key: task, value: []});
-				this.response_types.push({key: task, value: 'all'})
-				this.tasks.push({key: task, value: []});
-				for (id in this.iframes) {
+				this.response[task] = [];
+				this.response_types[task] = 'all';
+				this.tasks[task] = [];
+				for (let id in this.iframes) {
 					this.sendMessageToIframe_internal(id, task, data);
 				}
 			}
 		}
 		
-		sendMessageToParent(task, data) {
+		sendMessageToParent(task, data = []) {
 			if (this.is_child) {
-				if (data === undefined) { data = [] };
 				window.parent.postMessage({'sender': 'child', 'sender_id': this.id,
 					'task': task, 'data': data}, this.parent_url);
 			}
@@ -61,16 +71,17 @@
 			
 		receiveMessageFromParent(message) {
 			if (this.is_child) {
-				if (message["task"] == 'setup') {
+				let task = message['task'];
+				if (task == 'setup') {
 					this.id = message["reciever_id"];
 					this.parent_url = message['data']['url'];
-					sendMessageToParent(message["task"]);
+					sendMessageToParent(task);
 				} else if (id == message["reciever_id"]) {
-					switch (message["task"]) {
-						case 'find_videos':
-							day = "Monday";
-							break;
-					}
+					let callbacks = this.callbacks[task]
+					for (let i=0; i<callbacks.length; i++) {
+						let callback = callbacks[i];
+						callback();	
+					}		
 				}
 			}
 		}
@@ -93,7 +104,7 @@
 			
 			if (this.is_parent) {
 				let task = message['task'];
-				this.response[task].push({key: message['sender_id'], value: data});
+				this.response[task][message['sender_id']] = data
 				if (this.response_types['task'] == 'all') {
 					if (this.response[task].length == this.iframes.length) {
 						call_functions(task);
@@ -119,13 +130,12 @@
 		initialize() {
 			if (this.is_parent) {
 				this.iframe_elements = document.getElementsByTagName('iframe');
-				if (iframe_elements.length) {
-					for (let i=0; i<iframe_elements.length; i++) {
-						let iframe = iframe_elements[i];
+				if (this.iframe_elements.length) {
+					for (let i=0; i<this.iframe_elements.length; i++) {
+						let iframe = this.iframe_elements[i];
 						if (iframe.src !== "") {
 							let iframe_id = 'iframe_id_' + i.toString();
-							console.log('iframe_id:',iframe_id);
-							this.iframes.push({key: iframe_id, value: iframe});
+							this.iframes[iframe_id] = iframe;
 						}
 					}
 					this.sendMessageToAllIframes('setup', {'url': window.location.href});
@@ -134,18 +144,20 @@
 			window.addEventListener('message', this.receiveMessage);
 		}
 		
-		call(f, tasks) {	// call functions after tasks have finished and response is sent form iframe, if task is ommited function is called after initialization
+		add_function(f, tasks) {	// call functions after tasks have finished and response is sent form iframe, if task is ommited function is called after initialization
+			
+			var this_ = this;
 			
 			var addTask = function(task) {
-				if (this.tasks.includes(task)) {
-					this.tasks[task].push(this.functions.length-1);
+				if (this_.tasks.includes(task)) {
+					this_.tasks[task].push(this_.functions.length-1);
 				} else {
-					this.tasks['setup'].push(this.functions.length-1);
+					this_.tasks['setup'].push(this_.functions.length-1);
 				}
 			}
 		
 			this.functions.push(f);
-			if (variable.constructor === Array) {
+			if (tasks.constructor === Array) {
 				this.function_tasks.push(tasks);
 				for (let i=0; i<tasks.length; i++) {
 					addTask(tasks[i]);
@@ -157,54 +169,28 @@
 			}
 		}
 		
-		
-	}
-	
-	/*
-	function sendMessageToParent(task, data) {
-		if (data === undefined) { data = [] };
-		window.parent.postMessage({'sender': 'child', 'sender_id': id,
-			'task': task, 'data': data}, parent_url);
-	}
-	
-	function receiveMessageFromParent(message) {
-		if (message["task"] == 'setup') {
-			id = message["reciever_id"];
-			parent_url = message['data']['url'];
-		} else if (id == message["reciever_id"]) {
-			switch (message["task"]) {
-				case 'find_videos':
-					day = "Monday";
-					break;
-			}
+		add_callback(f, task) {	// call callback functions after task has been initialized
+			this.callbacks.update(task, f);	
 		}
-		sendMessageToParent(message["task"]);
-	}
-	
-	function receiveMessageFromChild(message) {
+		
 		
 	}
-	
-	function receiveMessage(e) {
-		let message = e.data;
-		switch (message["sender"]) {
-			case 'parent':
-				receiveMessageFromParent(message);
-				break;
-			case 'child':
-				receiveMessageFromChild(message);
-				break;
-		}		
-	}
-	*/
+		
+
+
 
 	function main() {
 		var messageEle = document.getElementById('message');
 		console.log('Working script.')
 		
+		function show(response) {
+			messageEle.innerHTML = 'message: ' + response['send_message']['data']['text'];
+		}
+		
 		
 		var c = new Communicator('both');
-		
+		c.initialize();
+		c.add_callback(show, 'send_message');
 		
 		//window.addEventListener('message', receiveMessage);
 	}
